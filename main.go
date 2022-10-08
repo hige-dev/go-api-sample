@@ -52,9 +52,7 @@ func Users(w http.ResponseWriter, r *http.Request) {
 	case "GET":
 		GetUsers(w, r)
 	case "POST":
-		// user作成
-		// jsonをパースしてDBに保存
-		//
+		CreateUser(w, r)
 	default:
 		fmt.Fprintf(w, "Unauthorized Method: %+v", r.Method)
 	}
@@ -88,4 +86,30 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, err)
 	}
 	rows.Close()
+}
+
+func CreateUser(w http.ResponseWriter, r *http.Request) (err error) {
+	len := r.ContentLength
+	body := make([]byte, len)
+	r.Body.Read(body)
+	log.Print(body)
+	var user User
+	json.Unmarshal(body, &user)
+	if err = user.create(); err != nil {
+		return
+	}
+	w.WriteHeader(200)
+	return
+}
+
+func (user *User) create() (err error) {
+	statement := "insert into users (name) values ($1) returning id"
+	stmt, err := Db.Prepare(statement)
+	if err != nil {
+		return
+	}
+	defer stmt.Close()
+	err = stmt.QueryRow(user.Name).Scan(&user.Id)
+	log.Print(user, err)
+	return
 }
